@@ -1,0 +1,154 @@
+Public Sub ConfrontaDati()
+    Dim wb1 As Workbook, wb2 As Workbook
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim col1 As String, col2 As String
+    Dim maxRows As Long
+    Dim i As Long, j As Long
+    Dim matchFound As Boolean
+    
+    ' Disabilita aggiornamenti schermo e calcoli automatici
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    ' Riferimento al file attuale
+    Set wb1 = ThisWorkbook
+    
+    ' Chiedere all'utente se vuole usare il file attuale o un altro
+    If MsgBox("Vuoi usare il file attuale per il confronto?", vbYesNo, "Selezione File") = vbNo Then
+        Dim File1 As Variant
+        File1 = Application.GetOpenFilename("File Excel (*.xlsx; *.xls), *.xlsx; *.xls", , "Seleziona il primo file")
+        If File1 = False Then
+            RipristinaImpostazioniExcel
+            Exit Sub
+        End If
+        Set wb1 = Workbooks.Open(File1)
+    End If
+    Set ws1 = wb1.Sheets(1)
+    
+    ' Selezione del secondo file
+    Dim File2 As Variant
+    File2 = Application.GetOpenFilename("File Excel (*.xlsx; *.xls), *.xlsx; *.xls", , "Seleziona il secondo file")
+    If File2 = False Then
+        RipristinaImpostazioniExcel
+        Exit Sub
+    End If
+    Set wb2 = Workbooks.Open(File2)
+    Set ws2 = wb2.Sheets(1)
+    
+    ' Input per selezionare le colonne
+    col1 = UCase(InputBox("Inserisci la lettera della colonna da confrontare nel primo file (es. A, B, C)"))
+    col2 = UCase(InputBox("Inserisci la lettera della colonna da confrontare nel secondo file (es. A, B, C)"))
+    
+    ' Verifica che le colonne siano valide
+    If col1 = "" Or col2 = "" Then
+        MsgBox "Colonna non valida!", vbExclamation
+        RipristinaImpostazioniExcel
+        Exit Sub
+    End If
+    
+    ' Chiedi all'utente il numero massimo di righe
+    Dim strMaxRows As String
+    strMaxRows = InputBox("Inserisci il numero massimo di righe da confrontare:", "Limite Righe", "40")
+    
+    ' Converti e valida il numero di righe
+    If Not IsNumeric(strMaxRows) Or Val(strMaxRows) <= 0 Then
+        MsgBox "Numero di righe non valido. Verrà utilizzato il valore predefinito di 40.", vbInformation
+        maxRows = 40
+    Else
+        maxRows = CLng(Val(strMaxRows))
+    End If
+    
+    ' Trova l'ultima riga con dati, ma limita al massimo specificato
+    Dim lastRow1 As Long, lastRow2 As Long
+    lastRow1 = Application.Min(ws1.Cells(ws1.Rows.Count, col1).End(xlUp).Row, maxRows + 1)
+    lastRow2 = Application.Min(ws2.Cells(ws2.Rows.Count, col2).End(xlUp).Row, maxRows + 1)
+    
+    ' Variabili per conteggio
+    Dim matchCount As Long
+    matchCount = 0
+    
+    ' Confronto con evidenziazione
+    For i = 2 To lastRow1 ' Inizia dalla seconda riga per saltare l'intestazione
+        Dim cellValue1 As String
+        cellValue1 = PulisciTesto(ws1.Range(col1 & i).Value)
+        
+        If Len(cellValue1) > 0 Then ' Salta celle vuote
+            For j = 2 To lastRow2 ' Inizia dalla seconda riga per saltare l'intestazione
+                Dim cellValue2 As String
+                cellValue2 = PulisciTesto(ws2.Range(col2 & j).Value)
+                
+                ' Confronto parziale
+                If InStr(cellValue1, cellValue2) > 0 Or InStr(cellValue2, cellValue1) > 0 Then
+                    ' Evidenzia le corrispondenze in giallo su entrambi i file
+                    ws1.Range(col1 & i).Interior.Color = RGB(255, 255, 0) ' Giallo
+                    ws2.Range(col2 & j).Interior.Color = RGB(255, 255, 0) ' Giallo
+                    matchCount = matchCount + 1
+                    Exit For
+                End If
+            Next j
+        End If
+    Next i
+    
+    ' Ripristina impostazioni Excel
+    RipristinaImpostazioniExcel
+    
+    ' Messaggio di riepilogo
+    MsgBox "Confronto completato!" & vbNewLine & _
+           "Righe esaminate: " & maxRows & vbNewLine & _
+           "Corrispondenze trovate: " & matchCount, vbInformation
+End Sub
+
+' Funzione per pulire il testo
+Function PulisciTesto(txt As Variant) As String
+    Dim cleanTxt As String
+    
+    ' Gestisci valori vuoti o nulli
+    If IsEmpty(txt) Or IsNull(txt) Then
+        PulisciTesto = ""
+        Exit Function
+    End If
+    
+    ' Converti in stringa, rimuovi spazi e converti in maiuscolo
+    cleanTxt = UCase(Replace(Trim(CStr(txt)), " ", ""))
+    
+    ' Rimuovi caratteri speciali
+    Dim i As Long
+    Dim risultato As String
+    risultato = ""
+    For i = 1 To Len(cleanTxt)
+        If (Asc(Mid(cleanTxt, i, 1)) >= 48 And Asc(Mid(cleanTxt, i, 1)) <= 57) Or _
+           (Asc(Mid(cleanTxt, i, 1)) >= 65 And Asc(Mid(cleanTxt, i, 1)) <= 90) Then
+            risultato = risultato & Mid(cleanTxt, i, 1)
+        End If
+    Next i
+    
+    ' Rimuovi suffissi finali come "SRL", "S.P.A.", "S.R.L.S.", ecc.
+    Dim suffixes As Variant
+    suffixes = Array("SRL", "S.P.A.", "S.R.L.", "S.P.A", "S.R.L", "S.R.L", "S.P.A", "S.R.L", "Srl", "SpA", "SRL", _
+                     "S.R.L.S.", "S.R.L.S", "S.P.A.S.", "S.P.A.S", "S.P.A", "Srls", "Spas", "S.r.l.", "S.p.a.", "S.r.l", "S.p.a")
+    
+    Dim suffix As Variant
+    For Each suffix In suffixes
+        If Len(risultato) >= Len(suffix) And Right(risultato, Len(suffix)) = suffix Then
+            risultato = Left(risultato, Len(risultato) - Len(suffix))
+        End If
+    Next suffix
+    
+    PulisciTesto = risultato
+End Function
+
+' Funzione per ripristinare le impostazioni di Excel
+Sub RipristinaImpostazioniExcel()
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    
+    ' Chiudi i file aperti se necessario
+    On Error Resume Next
+    If Not wb1 Is Nothing Then wb1.Close False
+    If Not wb2 Is Nothing Then wb2.Close False
+    On Error GoTo 0
+End Sub
+
+
+
+
