@@ -1,0 +1,43 @@
+Public Sub PulisciDati()
+
+    Dim cella As Range
+    Dim testo As String
+    Dim paroleDaRimuovere As Variant
+    Dim caratteriDaRimuovere As Variant
+    Dim i As Integer
+    Dim colonnaDaAnalizzare As String
+    Dim colonnaDestinazione As String
+    Dim ultimaRiga As Long
+
+    ' Chiedi all'utente di inserire la colonna da analizzare (esempio: "A", "B", "C", ...)
+    colonnaDaAnalizzare = InputBox("Inserisci la lettera della colonna da analizzare (ad esempio A, B, C):")
+    
+    ' Chiedi all'utente dove posizionare i nuovi dati puliti (esempio: "D", "E", "F", ...)
+    colonnaDestinazione = InputBox("Inserisci la lettera della colonna dove posizionare i dati puliti:")
+
+    ' Definisci i caratteri e le parole da rimuovere
+    caratteriDaRimuovere = Array(" ", ".", ",", ";", ":", "-", "(", ")", "*", "?", "!", "$", "€", "@")
+    paroleDaRimuovere = Array("SRL", "SPA", "SAS", "SNC", "srl", "spa")
+    
+    ' Trova l'ultima riga con dati nella colonna da analizzare
+    ultimaRiga = Cells(Rows.Count, colonnaDaAnalizzare).End(xlUp).Row
+
+    ' Scorri tutte le celle nella colonna selezionata (a partire dalla seconda riga)
+    For Each cella In Range(colonnaDaAnalizzare & "2:" & colonnaDaAnalizzare & ultimaRiga)
+        testo = UCase(cella.Value) ' Converte in maiuscolo
+
+        ' Rimuovi i caratteri speciali
+        For i = LBound(caratteriDaRimuovere) To UBound(caratteriDaRimuovere)
+            testo = Replace(testo, caratteriDaRimuovere(i), "")
+        Next i
+
+        ' Rimuovi le parole specificate
+        For i = LBound(paroleDaRimuovere) To UBound(paroleDaRimuovere)
+            testo = Replace(testo, paroleDaRimuovere(i), "")
+        Next i
+
+        ' Scrivi il testo modificato nella colonna di destinazione
+        Cells(cella.Row, colonnaDestinazione).Value = testo
+    Next cella
+
+End Sub
