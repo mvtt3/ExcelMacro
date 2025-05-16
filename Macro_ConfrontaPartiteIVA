@@ -1,0 +1,146 @@
+Public Sub ConfrontaPartiteIVA()
+    Dim wb1 As Workbook, wb2 As Workbook
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim col1 As String, col2 As String
+    Dim maxRows As Long
+    Dim i As Long, j As Long
+    Dim matchFound As Boolean
+    Dim partitaIVA1 As String, partitaIVA2 As String
+    Dim num1 As String, num2 As String
+    Dim matchCount As Long
+    
+    ' Disabilita aggiornamenti schermo e calcoli automatici
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    ' Riferimento al file attuale
+    Set wb1 = ThisWorkbook
+    
+    ' Chiedere all'utente se vuole usare il file attuale o un altro
+    If MsgBox("Vuoi usare il file attuale per il confronto?", vbYesNo, "Selezione File") = vbNo Then
+        Dim File1 As Variant
+        File1 = Application.GetOpenFilename("File Excel (*.xlsx; *.xls), *.xlsx; *.xls", , "Seleziona il primo file")
+        If File1 = False Then
+            ResetExcelSettings
+            Exit Sub
+        End If
+        Set wb1 = Workbooks.Open(File1)
+    End If
+    Set ws1 = wb1.Sheets(1)
+    
+    ' Selezione del secondo file
+    Dim File2 As Variant
+    File2 = Application.GetOpenFilename("File Excel (*.xlsx; *.xls), *.xlsx; *.xls", , "Seleziona il secondo file")
+    If File2 = False Then
+        ResetExcelSettings
+        Exit Sub
+    End If
+    Set wb2 = Workbooks.Open(File2)
+    Set ws2 = wb2.Sheets(1)
+    
+    ' Input per selezionare le colonne
+    col1 = UCase(InputBox("Inserisci la lettera della colonna da confrontare nel primo file (es. A, B, C)"))
+    col2 = UCase(InputBox("Inserisci la lettera della colonna da confrontare nel secondo file (es. A, B, C)"))
+    
+    ' Verifica che le colonne siano valide
+    If col1 = "" Or col2 = "" Then
+        MsgBox "Colonna non valida!", vbExclamation
+        ResetExcelSettings
+        Exit Sub
+    End If
+    
+    ' Chiedi all'utente il numero massimo di righe
+    Dim strMaxRows As String
+    strMaxRows = InputBox("Inserisci il numero massimo di righe da confrontare:", "Limite Righe", "40")
+    
+    ' Converti e valida il numero di righe
+    If Not IsNumeric(strMaxRows) Or Val(strMaxRows) <= 0 Then
+        MsgBox "Numero di righe non valido. Verrà utilizzato il valore predefinito di 40.", vbInformation
+        maxRows = 40
+    Else
+        maxRows = CLng(Val(strMaxRows))
+    End If
+    
+    ' Trova l'ultima riga con dati, ma limita al massimo specificato
+    Dim lastRow1 As Long, lastRow2 As Long
+    lastRow1 = Application.Min(ws1.Cells(ws1.Rows.Count, col1).End(xlUp).Row, maxRows + 1)
+    lastRow2 = Application.Min(ws2.Cells(ws2.Rows.Count, col2).End(xlUp).Row, maxRows + 1)
+    
+    ' Variabili per conteggio
+    matchCount = 0
+    
+    ' Confronto delle partite IVA
+    For i = 2 To lastRow1 ' Inizia dalla seconda riga per saltare l'intestazione
+        partitaIVA1 = ws1.Range(col1 & i).Value
+        partitaIVA1 = EstraiNumeri(partitaIVA1) ' Estrae solo i numeri e rimuove gli zeri iniziali
+        
+        If Len(partitaIVA1) > 0 Then ' Salta celle vuote
+            matchFound = False
+            For j = 2 To lastRow2 ' Inizia dalla seconda riga per saltare l'intestazione
+                partitaIVA2 = ws2.Range(col2 & j).Value
+                partitaIVA2 = EstraiNumeri(partitaIVA2) ' Estrae solo i numeri e rimuove gli zeri iniziali
+                
+                ' Confronta la sequenza di numeri
+                If VerificaSequenza(partitaIVA1, partitaIVA2) Then
+                    ' Evidenzia le corrispondenze in arancione su entrambi i file
+                    ws1.Range(col1 & i).Interior.Color = RGB(255, 165, 0) ' Arancione nel primo file
+                    ws2.Range(col2 & j).Interior.Color = RGB(255, 165, 0) ' Arancione nel secondo file
+                    matchCount = matchCount + 1
+                    matchFound = True
+                    Exit For
+                End If
+            Next j
+        End If
+    Next i
+    
+    ' Ripristina impostazioni Excel
+    ResetExcelSettings
+    
+    ' Messaggio di riepilogo
+    MsgBox "Confronto completato!" & vbNewLine & _
+           "Righe esaminate: " & maxRows & vbNewLine & _
+           "Corrispondenze trovate: " & matchCount, vbInformation
+End Sub
+
+' Funzione per estrarre solo i numeri dalla partita IVA e rimuovere gli zeri iniziali
+Function EstraiNumeri(partitaIVA As String) As String
+    Dim i As Integer
+    Dim risultato As String
+    risultato = ""
+    
+    ' Loop attraverso ogni carattere e conserva solo i numeri
+    For i = 1 To Len(partitaIVA)
+        If Mid(partitaIVA, i, 1) Like "#" Then
+            risultato = risultato & Mid(partitaIVA, i, 1)
+        End If
+    Next i
+    
+    ' Rimuove gli zeri iniziali
+    Do While Left(risultato, 1) = "0"
+        risultato = Mid(risultato, 2)
+    Loop
+    
+    EstraiNumeri = risultato
+End Function
+
+' Funzione per verificare se esiste una sequenza di 10 numeri uguali consecutivi
+Function VerificaSequenza(num1 As String, num2 As String) As Boolean
+    Dim i As Integer
+    
+    VerificaSequenza = False
+    
+    ' Controlla se almeno 10 numeri consecutivi sono uguali
+    For i = 1 To Len(num1) - 9
+        If Mid(num1, i, 10) = Mid(num2, i, 10) Then
+            VerificaSequenza = True
+            Exit Function
+        End If
+    Next i
+End Function
+
+' Funzione per ripristinare le impostazioni di Excel
+Sub ResetExcelSettings()
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+End Sub
+
