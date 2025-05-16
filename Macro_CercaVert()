@@ -1,0 +1,77 @@
+Public Sub CercaVert()
+    Dim wb1 As Workbook, wb2 As Workbook
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim col1 As String, col2 As String
+    Dim lastRow1 As Long, lastRow2 As Long
+    Dim File1 As Variant, File2 As Variant
+    Dim i As Long, j As Long
+    Dim matchCount As Long
+    
+    ' Disabilita aggiornamenti schermo e calcoli automatici
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    ' Riferimento al file attuale
+    Set wb1 = ThisWorkbook
+    
+    ' Chiedere all'utente se vuole usare il file attuale per il confronto
+    If MsgBox("Vuoi usare il file attuale per il confronto?", vbYesNo, "Selezione File") = vbNo Then
+        File1 = Application.GetOpenFilename("File Excel (*.xlsx; *.xls), *.xlsx; *.xls", , "Seleziona il primo file")
+        If File1 = False Then Exit Sub ' Se l'utente annulla, esci
+        Set wb1 = Workbooks.Open(File1)
+    End If
+    Set ws1 = wb1.Sheets(1) ' Puoi scegliere il foglio specifico qui se necessario
+    
+    ' Selezione del secondo file
+    File2 = Application.GetOpenFilename("File Excel (*.xlsx; *.xls), *.xlsx; *.xls", , "Seleziona il secondo file")
+    If File2 = False Then Exit Sub ' Se l'utente annulla, esci
+    Set wb2 = Workbooks.Open(File2)
+    Set ws2 = wb2.Sheets(1) ' Puoi scegliere il foglio specifico qui se necessario
+    
+    ' Input per selezionare le colonne
+    col1 = UCase(InputBox("Inserisci la lettera della colonna da confrontare nel primo file (es. A, B, C)"))
+    col2 = UCase(InputBox("Inserisci la lettera della colonna da confrontare nel secondo file (es. A, B, C)"))
+    
+    ' Verifica che le colonne siano valide
+    If col1 = "" Or col2 = "" Then
+        MsgBox "Colonna non valida!", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Trova l'ultima riga con dati
+    lastRow1 = ws1.Cells(ws1.Rows.Count, col1).End(xlUp).Row
+    lastRow2 = ws2.Cells(ws2.Rows.Count, col2).End(xlUp).Row
+    
+    ' Variabili per conteggio
+    matchCount = 0
+    
+    ' Confronto con evidenziazione
+    For i = 2 To lastRow1 ' Inizia dalla seconda riga per saltare l'intestazione
+        Dim cellValue1 As String
+        cellValue1 = ws1.Range(col1 & i).Value
+        
+        If Len(cellValue1) > 0 Then ' Salta celle vuote
+            For j = 2 To lastRow2 ' Inizia dalla seconda riga per saltare l'intestazione
+                Dim cellValue2 As String
+                cellValue2 = ws2.Range(col2 & j).Value
+                
+                ' Confronto esatto
+                If cellValue1 = cellValue2 Then
+                    ' Evidenzia le corrispondenze in verde su entrambi i file
+                    ws1.Range(col1 & i).Interior.Color = RGB(0, 255, 0) ' Verde
+                    ws2.Range(col2 & j).Interior.Color = RGB(0, 255, 0) ' Verde
+                    matchCount = matchCount + 1
+                    Exit For
+                End If
+            Next j
+        End If
+    Next i
+    
+    ' Ripristina impostazioni Excel
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    
+    ' Messaggio di riepilogo
+    MsgBox "Confronto completato!" & vbNewLine & _
+           "Corrispondenze trovate: " & matchCount, vbInformation
+End Sub
